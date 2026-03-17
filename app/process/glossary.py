@@ -4,11 +4,27 @@ from nltk.corpus import stopwords
 from nltk.corpus import wordnet
 import string
 
+def stem(word):
+    suffix_list_1 = ["ing", "ed", "ly"]
+    regexp = r'^(.*?)(ing|ly|ed|ious|ies|ive|es|s|ment)?$'
+    stemword, suffix = re.findall(regexp, word)[0]
+
+    if wordnet.synsets(stemword):
+        return stemword
+
+    if suffix in suffix_list_1:
+        stemword += "e"
+        if wordnet.synsets(stemword):
+            return stemword
+
+    return word
 
 def getGlossary():
+
     nltk.download('wordnet')
     stop_words = set(stopwords.words('english'))
     punctuations = set(string.punctuation)
+
     translation = "Dhṛtarāṣṭra said: O Sañjaya, after my sons and the sons of Pāṇḍu assembled in the place of pilgrimage at Kurukṣetra, desiring to fight, what did they do?"
 
     translation_words = word_tokenize(translation)
@@ -23,7 +39,9 @@ def getGlossary():
 
     for word in unique_words:
         if wordnet.synsets(word):
-            english_words.append(word)
+            stemword = stem(word)
+            english_words.append(stemword)
+            print(word, stemword)
         else:
             nonenglish_words.append(word)
 
