@@ -3,10 +3,20 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.corpus import wordnet
 import string
+import openpyxl
 
+workbook = openpyxl.load_workbook('test BG.xlsx')
+sheet = workbook.active
+stop_words = set(stopwords.words('english'))
+punctuations = set(string.punctuation)
+
+wtw_dict = {}
+english_words = []
+nonenglish_words = []
 def stem(word):
     suffix_list_1 = ["ing", "ed", "ly"]
-    regexp = r'^(.*?)(ing|ly|ed|ious|ies|ive|es|s|ment)?$'
+    # ious is removed from the list as it leads to incorrect word...
+    regexp = r'^(.*?)(ing|ly|ed|ies|ive|es|s|ment)?$'
     stemword, suffix = re.findall(regexp, word)[0]
 
     if wordnet.synsets(stemword):
@@ -19,32 +29,52 @@ def stem(word):
 
     return word
 
+def processText(text_input):
+    token_words = word_tokenize(text_input)
+    filtered_words = [word for word in token_words if
+                      word.lower() not in (stop_words) and word.lower() not in (punctuations)]
+    unique_words = list(set(filtered_words))
+
+    for word in unique_words:
+        if word not in english_words:
+            if wordnet.synsets(word):
+                stemword = stem(word)
+                english_words.append(stemword)
+            else:
+                nonenglish_words.append(word)
 def getGlossary():
 
     nltk.download('wordnet')
-    stop_words = set(stopwords.words('english'))
-    punctuations = set(string.punctuation)
 
-    translation = "Dhṛtarāṣṭra said: O Sañjaya, after my sons and the sons of Pāṇḍu assembled in the place of pilgrimage at Kurukṣetra, desiring to fight, what did they do?"
+    delimiter_char = ";"
 
-    translation_words = word_tokenize(translation)
-    print(translation_words)
-    filtered_words = [word for word in translation_words if word.lower() not in (stop_words) and word.lower() not in (punctuations)]
-    print(filtered_words)
-    unique_words = list(set(filtered_words))
-    print(unique_words)
+    for row in sheet.iter_rows():
 
-    english_words = []
-    nonenglish_words = []
+        # process translation
+        processText(row[4].value)
 
-    for word in unique_words:
-        if wordnet.synsets(word):
-            stemword = stem(word)
-            english_words.append(stemword)
-            print(word, stemword)
-        else:
-            nonenglish_words.append(word)
+        # process purport
+        if row[5].value is not None:
+            processText(row[5].value)
 
-    print('english words >> ', english_words)
-    print('non english words >> ', nonenglish_words)
+        processText(row[3].value)
+
+        # print(' word to word processing...> ', row[3].value)
+        wtwList = row[3].value.split(delimiter_char)
+        for tokenstr in wtwList:
+            tokenstrings = tokenstr.split('–')
+            valuewtw = tokenstrings.pop().strip()
+            keywtw = tokenstrings.pop().strip()
+            if keywtw in wtw_dict:
+                if valuewtw not in wtw_dict[keywtw]:
+                    wtw_dict[keywtw].append(valuewtw)
+            else:
+                wtw_dict[keywtw] = [valuewtw]
+
+    print('word to word >> ')
+    print(wtw_dict)
+    print('english words >> ')
+    print(english_words)
+    print('non english words >> ')
+    print(nonenglish_words)
 getGlossary()
